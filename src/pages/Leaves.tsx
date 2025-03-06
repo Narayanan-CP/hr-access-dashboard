@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useContext } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import MainLayout from '@/components/layout/MainLayout';
@@ -131,17 +130,32 @@ const Leaves = () => {
           const endDate = new Date(leaveRequest.end_date);
           const diffDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
           
-          // Update the used_days in leave_balances
-          const { error: balanceError } = await supabase.rpc('increment_leave_used_days', {
-            p_user_id: leaveRequest.user_id,
-            p_leave_type: leaveRequest.leave_type,
-            p_days: diffDays,
-            p_year: new Date().getFullYear()
-          });
+          // Update the used_days in leave_balances using a direct update instead of RPC
+          const currentYear = new Date().getFullYear();
           
-          if (balanceError) {
-            console.error('Error updating leave balance:', balanceError);
+          // First get the current balance
+          const { data: balanceData, error: fetchError } = await supabase
+            .from('leave_balances')
+            .select('*')
+            .eq('user_id', leaveRequest.user_id)
+            .eq('leave_type', leaveRequest.leave_type)
+            .eq('year', currentYear)
+            .single();
+            
+          if (fetchError) {
+            console.error('Error fetching leave balance:', fetchError);
             // Continue anyway as the leave is already approved
+          } else if (balanceData) {
+            // Then update it
+            const { error: updateError } = await supabase
+              .from('leave_balances')
+              .update({ used_days: balanceData.used_days + diffDays })
+              .eq('id', balanceData.id);
+              
+            if (updateError) {
+              console.error('Error updating leave balance:', updateError);
+              // Continue anyway as the leave is already approved
+            }
           }
         }
       }
