@@ -1,10 +1,10 @@
 
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
+import { format, differenceInDays, addDays } from 'date-fns';
 import { CalendarIcon, Loader2 } from 'lucide-react';
 import {
   Form,
@@ -15,7 +15,6 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -32,6 +31,8 @@ import {
 } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
+import { AuthContext } from '@/App';
 
 const leaveSchema = z.object({
   leaveType: z.string({
@@ -42,12 +43,15 @@ const leaveSchema = z.object({
   }),
   endDate: z.date({
     required_error: "Please select an end date",
-  }).refine((date) => date > new Date(), {
-    message: "End date must be in the future",
   }),
   reason: z.string().min(10, {
     message: "Reason must be at least 10 characters",
   }),
+}).refine((data) => {
+  return data.endDate >= data.startDate;
+}, {
+  message: "End date must be after or equal to start date",
+  path: ["endDate"],
 });
 
 type LeaveFormValues = z.infer<typeof leaveSchema>;
@@ -58,6 +62,7 @@ interface LeaveRequestFormProps {
 
 const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({ onSuccess }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { user } = useContext(AuthContext);
 
   const form = useForm<LeaveFormValues>({
     resolver: zodResolver(leaveSchema),
@@ -68,13 +73,33 @@ const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({ onSuccess }) => {
   });
 
   const onSubmit = async (data: LeaveFormValues) => {
+    if (!user) {
+      toast.error('You must be logged in to request leave');
+      return;
+    }
+
     setIsSubmitting(true);
     
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Format dates for database
+      const startDate = format(data.startDate, 'yyyy-MM-dd');
+      const endDate = format(data.endDate, 'yyyy-MM-dd');
       
-      console.log('Leave request data:', data);
+      // Submit leave request to Supabase
+      const { error } = await supabase
+        .from('leave_requests')
+        .insert({
+          user_id: user.id,
+          leave_type: data.leaveType,
+          start_date: startDate,
+          end_date: endDate,
+          reason: data.reason,
+          status: 'pending'
+        });
+      
+      if (error) {
+        throw error;
+      }
       
       toast.success('Leave request submitted successfully!');
       
@@ -83,9 +108,9 @@ const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({ onSuccess }) => {
       }
       
       form.reset();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Submit error:', error);
-      toast.error('Failed to submit leave request. Please try again.');
+      toast.error(error.message || 'Failed to submit leave request. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -111,7 +136,7 @@ const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({ onSuccess }) => {
                   <SelectItem value="sick">Sick Leave</SelectItem>
                   <SelectItem value="personal">Personal Leave</SelectItem>
                   <SelectItem value="bereavement">Bereavement Leave</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
+                  <SelectItem value="unpaid">Unpaid Leave</SelectItem>
                 </SelectContent>
               </Select>
               <FormDescription>
@@ -155,7 +180,6 @@ const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({ onSuccess }) => {
                       onSelect={field.onChange}
                       disabled={(date) => date < new Date()}
                       initialFocus
-                      className="pointer-events-auto"
                     />
                   </PopoverContent>
                 </Popover>
@@ -199,7 +223,6 @@ const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({ onSuccess }) => {
                         return date < new Date() || (startDate && date < startDate);
                       }}
                       initialFocus
-                      className="pointer-events-auto"
                     />
                   </PopoverContent>
                 </Popover>
