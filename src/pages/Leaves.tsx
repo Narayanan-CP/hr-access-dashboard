@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
@@ -23,11 +22,9 @@ const Leaves = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   useEffect(() => {
-    // In a real app, you'd get this from context/state management
     const role = localStorage.getItem('userRole') as 'admin' | 'employee' || 'employee';
     setUserRole(role);
     
-    // Simulate data loading
     const timer = setTimeout(() => {
       setIsLoading(false);
     }, 1000);
@@ -72,6 +69,7 @@ const Leaves = () => {
   const myLeaveRequests = [
     {
       id: 1,
+      employeeName: 'Current User',
       leaveType: 'Annual Leave',
       startDate: '2023-06-15',
       endDate: '2023-06-20',
@@ -80,6 +78,7 @@ const Leaves = () => {
     },
     {
       id: 2,
+      employeeName: 'Current User',
       leaveType: 'Sick Leave',
       startDate: '2023-07-05',
       endDate: '2023-07-06',

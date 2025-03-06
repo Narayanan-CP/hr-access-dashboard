@@ -2,7 +2,7 @@
 import React from 'react';
 import GlassCard from '../ui-custom/GlassCard';
 import { cn } from '@/lib/utils';
-import { CircleNotch } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 interface StatsCardProps {
   title: string;
@@ -51,7 +51,7 @@ const StatsCard: React.FC<StatsCardProps> = ({
         <h3 className="text-sm font-medium text-muted-foreground">{title}</h3>
         {isLoading ? (
           <div className="flex items-center mt-1">
-            <CircleNotch className="h-4 w-4 animate-spin mr-2" />
+            <Loader2 className="h-4 w-4 animate-spin mr-2" />
             <span className="text-muted-foreground">Loading...</span>
           </div>
         ) : (

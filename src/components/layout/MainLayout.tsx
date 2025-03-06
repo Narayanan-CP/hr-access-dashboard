@@ -186,7 +186,10 @@ const AppSidebar = ({ menuItems, userRole, onLogout }: AppSidebarProps) => {
             <SidebarMenu>
               {menuItems.map((item) => (
                 <SidebarMenuItem key={item.path}>
-                  <SidebarMenuButton asChild active={location.pathname === item.path}>
+                  <SidebarMenuButton 
+                    asChild 
+                    data-state={location.pathname === item.path ? "active" : "inactive"}
+                  >
                     <Link to={item.path} className="flex items-center gap-3">
                       {item.icon}
                       <span>{item.title}</span>

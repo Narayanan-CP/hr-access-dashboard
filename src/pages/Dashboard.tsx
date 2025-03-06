@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   CalendarDays, 
@@ -62,22 +61,26 @@ const Dashboard = () => {
     { 
       title: 'Available Leave Days', 
       value: '14', 
-      icon: <CalendarDays className="h-5 w-5 text-primary" /> 
+      icon: <CalendarDays className="h-5 w-5 text-primary" />,
+      trend: { value: 0, isPositive: true }
     },
     { 
       title: 'Current Salary', 
       value: '$3,500', 
-      icon: <DollarSign className="h-5 w-5 text-primary" /> 
+      icon: <DollarSign className="h-5 w-5 text-primary" />,
+      trend: { value: 5, isPositive: true }
     },
     { 
       title: 'Pending Tasks', 
       value: '3', 
-      icon: <ClipboardList className="h-5 w-5 text-primary" /> 
+      icon: <ClipboardList className="h-5 w-5 text-primary" />,
+      trend: { value: 1, isPositive: false }
     },
     { 
       title: 'Open Complaints', 
       value: '0', 
-      icon: <MessageSquare className="h-5 w-5 text-primary" /> 
+      icon: <MessageSquare className="h-5 w-5 text-primary" />,
+      trend: { value: 0, isPositive: true }
     },
   ];
 
