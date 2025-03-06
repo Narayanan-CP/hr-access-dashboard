@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect } from 'react';
-import { useLocation, Link } from 'react-router-dom';
+import React, { useState, useEffect, useContext } from 'react';
+import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { 
   SidebarProvider, 
   Sidebar, 
@@ -26,6 +26,7 @@ import {
   LogOut,
   Users
 } from 'lucide-react';
+import { AuthContext } from '@/App';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -37,16 +38,23 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   userRole = 'employee' 
 }) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [isMounted, setIsMounted] = useState(false);
+  const { signOut } = useContext(AuthContext);
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
-  const handleLogout = () => {
-    // In a real app, this would call your auth service logout method
-    toast.success('Successfully logged out');
-    // Navigate to login page
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      toast.success('Successfully logged out');
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast.error('Failed to log out');
+    }
   };
 
   if (!isMounted) {
@@ -129,7 +137,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
-        <AppSidebar menuItems={menuItems} userRole={userRole} onLogout={handleLogout} />
+        <AppSidebar 
+          menuItems={userRole === 'admin' ? adminMenuItems : employeeMenuItems} 
+          userRole={userRole} 
+          onLogout={handleLogout} 
+        />
         <div className="flex-1 flex flex-col">
           <div className="p-4 md:p-6 flex items-center justify-between">
             <SidebarTrigger className="lg:hidden" />
