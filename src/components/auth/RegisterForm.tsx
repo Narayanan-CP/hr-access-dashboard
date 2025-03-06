@@ -1,6 +1,5 @@
 
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -16,100 +15,78 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
-const loginSchema = z.object({
+const registerSchema = z.object({
+  firstName: z.string().min(2, { message: 'First name must be at least 2 characters' }),
+  lastName: z.string().min(2, { message: 'Last name must be at least 2 characters' }),
   email: z.string().email({ message: 'Please enter a valid email address' }),
   password: z.string().min(6, { message: 'Password must be at least 6 characters' }),
-  rememberMe: z.boolean().optional(),
+  confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
 });
 
-type LoginFormValues = z.infer<typeof loginSchema>;
+type RegisterFormValues = z.infer<typeof registerSchema>;
 
-interface LoginFormProps {
+interface RegisterFormProps {
   onSuccess?: (role: 'admin' | 'employee') => void;
 }
 
-const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
-  const navigate = useNavigate();
+const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [activeTab, setActiveTab] = useState<'employee' | 'admin'>('employee');
 
-  const form = useForm<LoginFormValues>({
-    resolver: zodResolver(loginSchema),
+  const form = useForm<RegisterFormValues>({
+    resolver: zodResolver(registerSchema),
     defaultValues: {
+      firstName: '',
+      lastName: '',
       email: '',
       password: '',
-      rememberMe: false,
+      confirmPassword: '',
     },
   });
 
-  const onSubmit = async (data: LoginFormValues) => {
+  const onSubmit = async (data: RegisterFormValues) => {
     setIsLoading(true);
     
     try {
-      const { data: authData, error } = await supabase.auth.signInWithPassword({
+      // Register the user with Supabase
+      const { data: authData, error } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
+        options: {
+          data: {
+            first_name: data.firstName,
+            last_name: data.lastName,
+            role: activeTab,
+          },
+        },
       });
       
       if (error) {
         throw error;
       }
       
-      // Get user profile to determine role
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', authData.user.id)
-        .single();
+      console.log('Registration successful:', authData);
       
-      if (profileError) {
-        if (profileError.code === 'PGRST116') {
-          // Profile not found, create a new one with the selected role
-          const { error: insertError } = await supabase
-            .from('profiles')
-            .insert({
-              id: authData.user.id,
-              first_name: '',
-              last_name: '',
-              email: data.email,
-              role: activeTab
-            });
-          
-          if (insertError) {
-            throw insertError;
-          }
-        } else {
-          throw profileError;
+      toast.success('Registration successful! Please check your email to confirm your account.');
+      
+      // In development mode, Supabase might not require email confirmation
+      if (authData.user) {
+        localStorage.setItem('userRole', activeTab);
+        
+        if (onSuccess) {
+          onSuccess(activeTab as 'admin' | 'employee');
         }
       }
-      
-      const userRole = profileData?.role || activeTab;
-      
-      console.log('Login successful:', { user: authData.user, role: userRole });
-      
-      toast.success(`Successfully logged in as ${userRole}`);
-      
-      // Store session in localStorage for persistence
-      if (data.rememberMe) {
-        localStorage.setItem('supabase.auth.token', JSON.stringify(authData.session));
-      }
-      
-      localStorage.setItem('userRole', userRole);
-      
-      if (onSuccess) {
-        onSuccess(userRole as 'admin' | 'employee');
-      }
-      
-      // Navigate to dashboard
-      navigate('/dashboard');
     } catch (error: any) {
-      console.error('Login error:', error);
-      toast.error(error.message || 'Login failed. Please check your credentials and try again.');
+      console.error('Registration error:', error);
+      toast.error(error.message || 'Registration failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -133,7 +110,37 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
         
         <TabsContent value="employee" className="mt-0">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="firstName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>First Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="John" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="lastName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Last Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Doe" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              
               <FormField
                 control={form.control}
                 name="email"
@@ -144,7 +151,6 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
                       <Input 
                         placeholder="you@example.com" 
                         type="email" 
-                        autoComplete="email"
                         {...field} 
                       />
                     </FormControl>
@@ -164,7 +170,6 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
                         <Input 
                           placeholder="••••••••" 
                           type={showPassword ? "text" : "password"} 
-                          autoComplete="current-password"
                           {...field} 
                         />
                         <Button
@@ -192,34 +197,34 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
               
               <FormField
                 control={form.control}
-                name="rememberMe"
+                name="confirmPassword"
                 render={({ field }) => (
-                  <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                  <FormItem>
+                    <FormLabel>Confirm Password</FormLabel>
                     <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
+                      <Input 
+                        placeholder="••••••••" 
+                        type={showPassword ? "text" : "password"} 
+                        {...field} 
                       />
                     </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel>Remember me</FormLabel>
-                    </div>
+                    <FormMessage />
                   </FormItem>
                 )}
               />
               
               <Button 
                 type="submit" 
-                className="w-full" 
+                className="w-full mt-6" 
                 disabled={isLoading}
               >
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Logging in...
+                    Registering...
                   </>
                 ) : (
-                  'Sign In'
+                  'Sign Up'
                 )}
               </Button>
             </form>
@@ -228,7 +233,37 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
         
         <TabsContent value="admin" className="mt-0">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="firstName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>First Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="John" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="lastName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Last Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Doe" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              
               <FormField
                 control={form.control}
                 name="email"
@@ -239,7 +274,6 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
                       <Input 
                         placeholder="admin@example.com" 
                         type="email" 
-                        autoComplete="email"
                         {...field} 
                       />
                     </FormControl>
@@ -259,7 +293,6 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
                         <Input 
                           placeholder="••••••••" 
                           type={showPassword ? "text" : "password"} 
-                          autoComplete="current-password"
                           {...field} 
                         />
                         <Button
@@ -287,40 +320,36 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
               
               <FormField
                 control={form.control}
-                name="rememberMe"
+                name="confirmPassword"
                 render={({ field }) => (
-                  <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                  <FormItem>
+                    <FormLabel>Confirm Password</FormLabel>
                     <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
+                      <Input 
+                        placeholder="••••••••" 
+                        type={showPassword ? "text" : "password"} 
+                        {...field} 
                       />
                     </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel>Remember me</FormLabel>
-                    </div>
+                    <FormMessage />
                   </FormItem>
                 )}
               />
               
               <Button 
                 type="submit" 
-                className="w-full" 
+                className="w-full mt-6" 
                 disabled={isLoading}
               >
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Logging in...
+                    Registering...
                   </>
                 ) : (
-                  'Admin Sign In'
+                  'Register as Admin'
                 )}
               </Button>
-
-              <div className="text-center text-sm text-muted-foreground mt-4">
-                <p>Demo account: admin@hr.com / password123</p>
-              </div>
             </form>
           </Form>
         </TabsContent>
@@ -329,4 +358,4 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
   );
 };
 
-export default LoginForm;
+export default RegisterForm;

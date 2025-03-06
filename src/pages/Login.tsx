@@ -3,7 +3,9 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import LoginForm from '@/components/auth/LoginForm';
+import RegisterForm from '@/components/auth/RegisterForm';
 import GlassCard from '@/components/ui-custom/GlassCard';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -11,7 +13,6 @@ const Login = () => {
 
   const handleLoginSuccess = (role: 'admin' | 'employee') => {
     setUserRole(role);
-    // In a real app, you would store user info in context/state/localStorage
     localStorage.setItem('userRole', role);
     navigate('/dashboard');
   };
@@ -33,7 +34,7 @@ const Login = () => {
             transition={{ duration: 0.5 }}
             className="text-center mb-8"
           >
-            <h1 className="text-3xl font-bold">Welcome Back</h1>
+            <h1 className="text-3xl font-bold">Welcome to HR Dashboard</h1>
             <p className="text-muted-foreground mt-2">
               Sign in to access your dashboard
             </p>
@@ -46,7 +47,20 @@ const Login = () => {
             className="w-full max-w-md"
           >
             <GlassCard>
-              <LoginForm onSuccess={handleLoginSuccess} />
+              <Tabs defaultValue="login" className="w-full">
+                <TabsList className="grid w-full grid-cols-2 mb-8">
+                  <TabsTrigger value="login">Login</TabsTrigger>
+                  <TabsTrigger value="register">Register</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="login">
+                  <LoginForm onSuccess={handleLoginSuccess} />
+                </TabsContent>
+                
+                <TabsContent value="register">
+                  <RegisterForm onSuccess={handleLoginSuccess} />
+                </TabsContent>
+              </Tabs>
             </GlassCard>
           </motion.div>
         </div>
